@@ -1,0 +1,10 @@
+# Global patterns
+*.exe
+*.swp
+.DS_Store
+nimcache/
+
+# Full paths.
+/README.html
+/license.html
+/nakefile
