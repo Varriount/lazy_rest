@@ -5,6 +5,9 @@ type
     ## Indicates something failed, with error output if `errors` is not nil.
     errors*: string
 
+const
+  name = "lazy_rest"
+
 template glob_rst(basedir: string = nil): expr =
   ## Shortcut to simplify getting lists of files.
   ##
@@ -51,6 +54,11 @@ proc doc(open_files = false) =
     else:
       echo rst_file & " -> " & html_file
       if open_files: shell("open " & html_file)
+
+  if needs_refresh(name & ".html", name & ".nim"):
+    if not shell("nimrod doc --verbosity:0", name):
+      quit("Could not generate HTML API doc for " & name)
+    if open_files: shell("open " & name & ".html")
 
   echo "All docs generated"
 
