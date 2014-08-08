@@ -9,4 +9,5 @@ See the `README <../README.rst>`_.
 v0.1.0, ????-??-??
 ------------------
 
-* Nothing yet.
+* `Imported useful bits from quicklook-rest-with-nimrod
+  <https://github.com/gradha/lazy_rest/issues/1>`_.
