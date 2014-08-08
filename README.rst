@@ -28,3 +28,21 @@ License
 =======
 
 `MIT license <LICENSE.rst>`_.
+
+
+Git branches
+============
+
+This project uses the `git-flow branching model
+<https://github.com/nvie/gitflow>`_ with reversed defaults. Stable releases are
+tracked in the ``stable`` branch. Development happens in the default ``master``
+branch.
+
+
+Feedback
+========
+
+You can send me feedback through `github's issue tracker
+<https://github.com/gradha/lazy_rest/issues>`_. I also take a look
+from time to time to `Nimrod's forums <http://forum.nimrod-lang.org>`_ where
+you can talk to other nimrod programmers.
