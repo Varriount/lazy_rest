@@ -45,11 +45,22 @@ proc test_shell(cmd: varargs[string, `$`]): bool {.discardable.} =
     raise e
 
 
+proc rst_to_html(src, dest: string): bool =
+  # Runs the unsafe rst generator, and if fails, uses the safe one.
+  #
+  # `src` will always be rendered, but true is only returned when there weren't
+  # any errors.
+  try:
+    dest.write_file(rst_string_to_html(src.read_file, src))
+    result = true
+  except:
+    dest.write_file(safe_rst_file_to_html(src))
+
 proc doc(open_files = false) =
   # Generate html files from the rst docs.
   for rst_file, html_file in all_rst_files():
     if not html_file.needs_refresh(rst_file): continue
-    if not shell("nimrod rst2html --verbosity:0", rst_file):
+    if not rst_to_html(rst_file, html_file):
       quit("Could not generate html doc for " & rst_file)
     else:
       echo rst_file & " -> " & html_file
