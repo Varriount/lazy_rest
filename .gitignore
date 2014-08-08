@@ -1,0 +1,9 @@
+*.swp
+nimcache/
+
+/LICENSE.html
+/README.html
+/docs/
+/lazy_rest
+/lazy_rest.html
+/nakefile
