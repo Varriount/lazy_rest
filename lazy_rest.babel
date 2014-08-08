@@ -1,0 +1,7 @@
+[Package]
+name          = "lazy_rest"
+version       = "0.1.0"
+author        = "Grzegorz Adam Hankiewicz"
+description   = """Simple reST HTML generation with some extras."""
+license       = "MIT"
+SkipDirs = "tests"

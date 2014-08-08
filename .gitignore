@@ -6,5 +6,17 @@ nimcache/
 
 # Full paths.
 /README.html
+/docs/changes.html
+/docs/nimrod_usage.html
+/docs/release_steps.html
+/gh_docs/
+/lazy_rest
+/lazy_rest.html
 /license.html
 /nakefile
+/tests/code_blocks/anon.html
+/tests/code_blocks/code_blocks.html
+/tests/code_blocks/html_blocks.html
+/tests/code_blocks/prism_examples.html
+/tests/code_blocks/user_tests.html
+/tests/include/simple_include_01.html
