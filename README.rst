@@ -17,6 +17,13 @@ sending them `upstream to Nimrod <https://github.com/Araq/Nimrod>`_ instead of
 here.
 
 
+Changes
+=======
+
+This is development version 0.1.0. For a list of changes see the
+`docs/changes.rst <docs/changes.rst>`_ file.
+
+
 License
 =======
 

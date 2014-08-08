@@ -3,7 +3,7 @@ Lazy reST release steps
 =======================
 
 These are the steps to be performed for new stable releases of `Lazy reSt
-<https://github.com/gradha/lazy_rest>`_.
+<https://github.com/gradha/lazy_rest>`_. See the `README <../README.rst>`_.
 
 * Create new milestone with version number (``vXXX``) at
   https://github.com/gradha/lazy_rest/milestones.
