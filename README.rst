@@ -30,6 +30,16 @@ License
 `MIT license <LICENSE.rst>`_.
 
 
+Usage
+=====
+
+If you are a Nimrod programmer read the `Nimrod usage guide
+<docs/nimrod_usage.rst>`_ which includes installation steps.
+
+All documentation should be available online at
+http://gradha.github.io/lazy_rest/.
+
+
 Git branches
 ============
 
