@@ -11,6 +11,13 @@ provided with regards to Nimrod's standard library version, like embedding of
 `Prism <http://prismjs.com>`_ for code block syntax highlighting.
 
 Unlike Nimrod's standard library, this module doesn't aim to support LaTeX
-generation at all. The included bits are inherited and not maintained. Which
-doesn't mean patches aren't welcome, but you may have more success sending them
-`upstream to Nimrod <https://github.com/Araq/Nimrod>`_ instead of here.
+generation at all. The included LaTeX bits are inherited and not maintained.
+Which doesn't mean patches aren't welcome, but you may have more success
+sending them `upstream to Nimrod <https://github.com/Araq/Nimrod>`_ instead of
+here.
+
+
+License
+=======
+
+`MIT license <LICENSE.rst>`_.
