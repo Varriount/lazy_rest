@@ -108,6 +108,7 @@ proc run_tests() =
 task "check_doc", "Validates rst format with python.": validate_doc()
 task "clean", "Removes temporal files, mostly.": clean()
 task "doc", "Generates HTML docs.": doc()
-task "doco", "Like 'doc' but also calls 'open' on generated HTML.": doco()
 task "i", "Uses babel to force install package locally.": install_babel()
 task "test", "Runs local generation tests.": run_tests()
+when defined(macosx):
+  task "doco", "Like 'doc' but also calls 'open' on generated HTML.": doco()
