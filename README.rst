@@ -1,6 +1,6 @@
-=========
-Lazy reST
-=========
+================
+Lazy reST readme
+================
 
 Lazy reST is a `Nimrod <http://nimrod-lang.org>`_ module providing a slightly
 higher level API over `Nimrod's rstgen module
