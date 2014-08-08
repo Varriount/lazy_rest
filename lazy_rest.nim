@@ -3,12 +3,17 @@ import lazy_rest_pkg/lrstgen, os, lazy_rest_pkg/lrst, strutils,
 
 ## Main API of `lazy_rest <https://github.com/gradha/lazy_rest>`_.
 
+proc tuple_to_version(x: expr): string {.compileTime.} =
+  ## Transforms an arbitrary int tuple into a dot separated string.
+  result = ""
+  for name, value in x.fieldPairs: result.add("." & $value)
+  if result.len > 0: result.delete(0, 0)
+
 const
   rest_default_config = slurp("resources"/"embedded_nimdoc.cfg")
   prism_js = "<script>" & slurp("resources"/"prism.js") & "</script>"
   prism_css = slurp("resources"/"prism.css")
-  versionStr* = "0.1.0" ## Module version as a string.
-  versionInt* = (major: 0, minor: 1, maintenance: 0) ## \
+  version_int* = (major: 0, minor: 1, maintenance: 0) ## \
   ## Module version as an integer tuple.
   ##
   ## Major versions changes mean a break in API backwards compatibility, either
@@ -20,6 +25,8 @@ const
   ##
   ## Maintenance version changes mean I'm not perfect yet despite all the kpop
   ## I watch.
+  version_str* = tuple_to_version(version_int) ## \
+    ## Module version as a string. Something like ``1.9.2``.
 
 type
   Global_state = object
@@ -207,7 +214,7 @@ proc safe_rst_file_to_html*(filename: string): string {.raises: [].} =
       e = getCurrentException()
       msg = getCurrentExceptionMsg()
     result = "<html><body><b>Sorry! Error parsing " & filename.XMLEncode &
-      " with version " & versionStr &
+      " with version " & version_str &
       """.</b><p>If possible please report it at <a href="""" &
       """https://github.com/gradha/quicklook-rest-with-nimrod/issues">""" &
       "https://github.com/gradha/quicklook-rest-with-nimrod/issues</a>" &
