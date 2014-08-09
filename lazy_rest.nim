@@ -112,7 +112,7 @@ proc rst_string_to_html*(content, filename: string): string =
 
   G.base_dir = filename.split_path().head
 
-  proc myFindFile(filename: string): string =
+  proc myFindFile(current, filename: string): string =
     debug("Asking for '" & filename & "'")
     debug("Global is '" & G.base_dir & "'")
     if G.base_dir.len > 0:

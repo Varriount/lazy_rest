@@ -49,7 +49,7 @@ type
     hasToc*: bool
     theIndex: string # Contents of the index file to be dumped at the end.
     options*: TRstParseOptions
-    findFile*: TFindFileHandler
+    findFile*: Find_file_handler
     msgHandler*: TMsgHandler
     filename*: string
     meta*: array[TMetaEnum, string]
@@ -79,7 +79,7 @@ proc init(p: var CodeBlockParams) =
 proc initRstGenerator*(g: var TRstGenerator, target: TOutputTarget,
                        config: PStringTable, filename: string,
                        options: TRstParseOptions,
-                       findFile: TFindFileHandler,
+                       findFile: Find_file_handler,
                        msgHandler: TMsgHandler) =
   ## Initializes a ``TRstGenerator``.
   ##
@@ -1220,7 +1220,7 @@ proc rstToHtml*(s: string, options: TRstParseOptions,
   ## output you have to create your own ``TRstGenerator`` with
   ## ``initRstGenerator`` and related procs.
 
-  proc myFindFile(filename: string): string =
+  proc myFindFile(current, filename: string): string =
     # we don't find any files in online mode:
     result = ""
 
