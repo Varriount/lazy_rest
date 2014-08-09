@@ -87,6 +87,19 @@ proc change_rst_options*(options: string): bool {.discardable, raises: [].} =
     try: G.config = loadConfig(rest_default_config)
     except: discard
 
+
+proc debugMyFindFile(current, filename: string): string =
+  ## Small wrapper around default file handler to debug paths.
+  debug("Asking for '" & filename & "'")
+  debug("Global is '" & current.parent_dir & "'")
+  result = current.parent_dir / filename
+  if result.exists_file:
+    debug("Returning '" & result & "'")
+    return
+  else:
+    result = ""
+
+
 proc rst_string_to_html*(content, filename: string): string =
   ## Converts a content named filename into a string with HTML tags.
   ##
@@ -109,22 +122,12 @@ proc rst_string_to_html*(content, filename: string): string =
     G.config = loadConfig(rest_default_config)
   assert G.config.not_nil
 
-  proc myFindFile(current, filename: string): string =
-    debug("Asking for '" & filename & "'")
-    debug("Global is '" & current.parent_dir & "'")
-    result = current.parent_dir / filename
-    if result.exists_file:
-      debug("Returning '" & result & "'")
-      return
-    else:
-      result = ""
-
   GENERATOR.initRstGenerator(outHtml, G.config, filename, parse_options,
-    myFindFile, lrst.defaultMsgHandler)
+    debugMyFindFile, lrst.defaultMsgHandler)
 
   # Parse the result.
   var RST = rstParse(content, filename, 1, 1, HAS_TOC,
-    parse_options, myFindFile)
+    parse_options, debugMyFindFile)
   RESULT = newStringOfCap(30_000)
 
   # Render document into HTML chunk.
