@@ -1,16 +1,21 @@
-import lazy_rest, strutils, os, times, actors, osproc
+when defined(release):
+  const num_files = 150
+  const really_release = true
+else:
+  const num_files = 20
+  const really_release = false
+
+import lazy_rest, strutils, os, times, actors, osproc, locks
 
 type
   Param_in = tuple[src, dest: string]
 
-const
-  num_files = 50
-  manual_input = "nimrod_doc"/"manual.txt"
+const manual_input = "nimrod_doc"/"manual.txt"
 
 proc process(p: Param_in) {.thread.} =
   # Converts the rst to html.
-  os.sleep(100)
-  #p.dest.write_file(safe_rst_file_to_html(p.src))
+  #os.sleep(100)
+  p.dest.write_file(safe_rst_file_to_html(p.src))
 
 proc serial_test() =
   for i in 1 .. num_files:
@@ -31,16 +36,63 @@ proc parallel_test() =
   pool.sync()
 
 
+var
+  threads: seq[TThread[void]]
+  global_pos = 0
+  success_conversions = 0
+  input_params: seq[Param_in]
+  L: TLock
+
+L.initLock
+
+proc render_input() {.thread.} =
+  while true:
+    L.acquire
+    if global_pos >= input_params.len:
+      L.release
+      return
+
+    var pos = global_pos
+    global_pos.inc
+    L.release
+
+    input_params[pos].dest.write_file(
+      safe_rst_file_to_html(input_params[pos].src))
+    success_conversions.atomicInc
+
+proc thread_test() =
+  let cpus = countProcessors()
+  # Init globals.
+  global_pos = 0
+  input_params = newSeq[Param_in](num_files)
+  for f in 0 .. <num_files:
+    input_params[f] = (manual_input, "tmanual" & $f & ".html")
+  # Create and start threads.
+  threads = newSeq[TThread[void]](cpus)
+  for f in 0 .. <cpus: createThread[void](threads[f], render_input)
+  threads.join_threads
+  assert success_conversions == num_files
+  #L.deinitLock
+
+
 proc test() =
-  when defined(release): echo "Running in release mode"
-  else: echo "Running in debug mode"
   let t1 = epoch_time()
   serial_test()
   let t2 = epoch_time()
   parallel_test()
   let t3 = epoch_time()
+  thread_test()
+  let t4 = epoch_time()
+  when really_release: echo "Running in release mode for ", num_files
+  else: echo "Running in debug mode for ", num_files
   echo "Spent in serial queue ", $(t2 - t1)
   echo "Spent in parallel queue ", $(t3 - t2)
+  echo "Spent in thread queue ", $(t4 - t3)
+  echo "Using ", countProcessors(), " for ", num_files, " steps"
+  let
+    it = float(int(num_files / float(countProcessors()) + 1))
+    serial_time = (t2 - t1) / float(num_files)
+  echo "Optimal would be ", $(it * serial_time), "s"
 
 proc check_setup() =
   if not manual_input.exists_file:
