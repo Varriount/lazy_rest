@@ -4,12 +4,13 @@ type
   Param_in = tuple[src, dest: string]
 
 const
-  num_files = 10
+  num_files = 50
   manual_input = "nimrod_doc"/"manual.txt"
 
 proc process(p: Param_in) {.thread.} =
   # Converts the rst to html.
-  p.dest.write_file(safe_rst_file_to_html(p.src))
+  os.sleep(100)
+  #p.dest.write_file(safe_rst_file_to_html(p.src))
 
 proc serial_test() =
   for i in 1 .. num_files:
@@ -31,6 +32,8 @@ proc parallel_test() =
 
 
 proc test() =
+  when defined(release): echo "Running in release mode"
+  else: echo "Running in debug mode"
   let t1 = epoch_time()
   serial_test()
   let t2 = epoch_time()
