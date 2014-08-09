@@ -10,6 +10,9 @@ proc tuple_to_version(x: expr): string {.compileTime.} =
   for name, value in x.fieldPairs: result.add("." & $value)
   if result.len > 0: result.delete(0, 0)
 
+proc load_config*(mem_string: string): PStringTable
+
+
 const
   rest_default_config = slurp("resources"/"embedded_nimdoc.cfg")
   prism_js = "<script>" & slurp("resources"/"prism.js") & "</script>"
@@ -31,18 +34,23 @@ const
 
 type
   Global_state = object
-    config: PStringTable ## HTML rendering configuration, nil unless loaded.
+    default_config: PStringTable ## HTML rendering configuration, never nil.
     last_c_conversion: string ## Modified by the exported C API procs.
+    did_start_logger: bool ## Internal debugging witness.
+
 
 var G: Global_state
+# Load default configuration.
+G.default_config = load_config(rest_default_config)
 
-proc loadConfig(mem_string: string): PStringTable =
-  ## Parses the configuration and retuns it as a PStringTable.
+
+proc load_config*(mem_string: string): PStringTable =
+  ## Parses the configuration and returns it as a PStringTable.
   ##
-  ## If something goes wrong, will likely raise an exception. Otherwise it
-  ## always return a valid object.
-  result = newStringTable(modeStyleInsensitive)
-  var f = newStringStream(mem_string)
+  ## If something goes wrong, will likely raise an exception or return nil.
+  var
+    f = newStringStream(mem_string)
+    temp = newStringTable(modeStyleInsensitive)
   if f.is_nil: raise newException(EInvalidValue, "cannot stream string")
 
   var p: TCfgParser
@@ -55,40 +63,33 @@ proc loadConfig(mem_string: string): PStringTable =
     of cfgSectionStart:   ## a ``[section]`` has been parsed
       discard
     of cfgKeyValuePair:
-      result[e.key] = e.value
+      temp[e.key] = e.value
     of cfgOption:
       warn("command: " & e.key & ": " & e.value)
     of cfgError:
       error(e.msg)
       raise newException(EInvalidValue, e.msg)
   close(p)
+  result = temp
 
-proc change_rst_options*(options: string): bool {.discardable, raises: [].} =
-  ## Changes the current global options.
+
+proc parse_rst_options*(options: string): PStringTable {.raises: [].} =
+  ## Parses the options, returns nil if something goes wrong.
   ##
-  ## If you pass nil, or the configuration you pass is invalid and raises some
-  ## parsing exception, the proc will modify the global options to sane
-  ## defaults. Otherwise future calls to rst parsing will use the new
-  ## templates. See rstgen.defaultConfig() for information on this.
-  ##
-  ## Returns true if `options` was set successfully, false otherwise. Note that
-  ## if you are passing nil to reset the options this proc always returns
-  ## false.
+  ## You can safely pass the result of this proc to `rst_string_to_html
+  ## <#rst_string_to_html>`_ since it will handle nil gracefully.
+  if options.is_nil or options.len < 1:
+    return nil
+
   try:
     # Select the correct configuration.
-    let o = if options.is_nil: rest_default_config else: options
-    G.config = loadConfig(o)
-    # But report success only if a valid config was passed in.
-    if options.not_nil:
-      result = true
+    result = load_config(options)
   except EInvalidValue, E_Base:
-    try: error("Setting default rst options")
-    except: discard
-    try: G.config = loadConfig(rest_default_config)
+    try: error("Returning nil as parsed options")
     except: discard
 
 
-proc debugMyFindFile(current, filename: string): string =
+proc debug_find_file(current, filename: string): string =
   ## Small wrapper around default file handler to debug paths.
   debug("Asking for '" & filename & "'")
   debug("Global is '" & current.parent_dir & "'")
@@ -100,34 +101,42 @@ proc debugMyFindFile(current, filename: string): string =
     result = ""
 
 
-proc rst_string_to_html*(content, filename: string): string =
+proc rst_string_to_html*(content, filename: string,
+    config: PStringTable = nil): string =
   ## Converts a content named filename into a string with HTML tags.
   ##
   ## If there is any problem with the parsing, an exception could be thrown.
   ## Note that this proc depends on global variables, you can't run safely
   ## multiple instances of it.
+  ##
+  ## You can pass nil as `options` if you want to use the default HTML
+  ## rendering templates embedded in the module. Or you can load a
+  ## configuration file with `parse_rst_options <#parse_rst_options>`_ or
+  ## `load_config <#load_config>`_.
+  assert G.default_config.not_nil
   let
     parse_options = {roSupportRawDirective}
+    config = if config.not_nil: config else: G.default_config
   var
     GENERATOR: TRstGenerator
     HAS_TOC: bool
+  assert config.not_nil
 
-  # Was the global configuration already loaded?
-  if G.config.is_nil:
+  # Was the debug logger started?
+  if not G.did_start_logger:
     when not defined(release):
       var f = newFileLogger("/tmp/rester.log", fmtStr = verboseFmtStr)
       handlers.add(newConsoleLogger())
       handlers.add(f)
       info("Initiating global log for debugging")
-    G.config = loadConfig(rest_default_config)
-  assert G.config.not_nil
+    G.did_start_logger = true
 
-  GENERATOR.initRstGenerator(outHtml, G.config, filename, parse_options,
-    debugMyFindFile, lrst.defaultMsgHandler)
+  GENERATOR.initRstGenerator(outHtml, config, filename, parse_options,
+    debug_find_file, lrst.defaultMsgHandler)
 
   # Parse the result.
   var RST = rstParse(content, filename, 1, 1, HAS_TOC,
-    parse_options, debugMyFindFile)
+    parse_options, debug_find_file)
   RESULT = newStringOfCap(30_000)
 
   # Render document into HTML chunk.
@@ -143,7 +152,7 @@ proc rst_string_to_html*(content, filename: string): string =
   #if title.len < 1: title = filename.split_path.tail
 
   # Now finish by adding header, CSS and stuff.
-  result = subex(G.config["doc.file"]) % ["title", title,
+  result = subex(config["doc.file"]) % ["title", title,
     "date", last_mod_gmt.format("yyyy-MM-dd"),
     "time", last_mod_gmt.format("HH:mm"),
     "local_date", last_mod_local.format("yyyy-MM-dd"),
@@ -154,13 +163,11 @@ proc rst_string_to_html*(content, filename: string): string =
     "content", MOD_DESC]
 
 
-proc rst_file_to_html*(filename: string): string =
+proc rst_file_to_html*(filename: string, config: PStringTable = nil): string =
   ## Converts a filename with rest content into a string with HTML tags.
   ##
   ## If there is any problem with the parsing, an exception could be thrown.
-  ## Note that this proc depends on global variables, you can't run safely
-  ## multiple instances of it.
-  return rst_string_to_html(readFile(filename), filename)
+  return rst_string_to_html(readFile(filename), filename, config)
 
 
 proc add_pre_number_lines(content: string): string =
@@ -197,13 +204,14 @@ proc add_pre_number_lines(content: string): string =
     result.add(content[<content.len])
 
 
-proc safe_rst_file_to_html*(filename: string): string {.raises: [].} =
+proc safe_rst_file_to_html*(filename: string, config: PStringTable = nil):
+    string {.raises: [].} =
   ## Wrapper over rst_file_to_html to catch exceptions.
   ##
   ## If something bad happens, it tries to show the error for debugging but
   ## still returns a sort of valid HTML embedded code.
   try:
-    result = rst_file_to_html(filename)
+    result = rst_file_to_html(filename, config)
   except:
     var content: string
     try: content = readFile(filename).XMLEncode
@@ -221,7 +229,9 @@ proc safe_rst_file_to_html*(filename: string): string {.raises: [].} =
       "<p><pre>" & content.add_pre_number_lines.replace("\n", "<br>") &
       "</pre></p></body></html>"
 
-proc nim_file_to_html*(filename: string): string {.raises: [].} =
+
+proc nim_file_to_html*(filename: string, config: PStringTable = nil):
+    string {.raises: [].} =
   ## Puts filename into a code block and renders like rst file.
   ##
   ## This proc always works, since even empty code blocks should render (as
@@ -235,7 +245,7 @@ proc nim_file_to_html*(filename: string): string {.raises: [].} =
     source = title_symbols & "\n" & name & "\n" & title_symbols &
       "\n.. code-block:: nimrod\n  "
     source.add(readFile(filename).replace("\n", "\n  "))
-    result = rst_string_to_html(source, filename)
+    result = rst_string_to_html(source, filename, config)
   except E_Base:
     result = "<html><body><h1>Error for " & filename & "</h1></body></html>"
   except EOS:
