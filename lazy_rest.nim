@@ -33,7 +33,6 @@ type
   Global_state = object
     config: PStringTable ## HTML rendering configuration, nil unless loaded.
     last_c_conversion: string ## Modified by the exported C API procs.
-    base_dir: string ## Used by the find files function.
 
 var G: Global_state
 
@@ -110,18 +109,13 @@ proc rst_string_to_html*(content, filename: string): string =
     G.config = loadConfig(rest_default_config)
   assert G.config.not_nil
 
-  G.base_dir = filename.split_path().head
-
   proc myFindFile(current, filename: string): string =
     debug("Asking for '" & filename & "'")
-    debug("Global is '" & G.base_dir & "'")
-    if G.base_dir.len > 0:
-      result = G.base_dir / filename
-      if result.exists_file:
-        debug("Returning '" & result & "'")
-        return
-    if filename.exists_file:
-      result = filename
+    debug("Global is '" & current.parent_dir & "'")
+    result = current.parent_dir / filename
+    if result.exists_file:
+      debug("Returning '" & result & "'")
+      return
     else:
       result = ""
 
