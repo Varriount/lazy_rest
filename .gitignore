@@ -22,3 +22,5 @@ nimcache/
 /tests/code_blocks/prism_examples.html
 /tests/code_blocks/user_tests.html
 /tests/include/simple_include_01.html
+/tests/threads/manual*.html
+/tests/threads/nimrod_doc
