@@ -1,4 +1,5 @@
 # Global patterns
+*.diff
 *.exe
 *.swp
 .DS_Store

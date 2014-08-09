@@ -111,7 +111,7 @@ proc run_tests() =
         failed.add(test_file)
   if failed.len > 0:
     echo "Uh oh, " & $failed.len & " tests failed running"
-    for f in failed: echo "\t" & failed
+    for f in failed: echo "\t" & f
   else:
     echo "All tests run without errors."
 

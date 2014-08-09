@@ -1,5 +1,6 @@
 import lazy_rest_pkg/lrstgen, os, lazy_rest_pkg/lrst, strutils,
-  parsecfg, subexes, strtabs, streams, times, cgi, logging
+  parsecfg, subexes, strtabs, streams, times, cgi, logging,
+  external/badger_bits/bb_system
 
 ## Main API of `lazy_rest <https://github.com/gradha/lazy_rest>`_.
 
@@ -43,7 +44,7 @@ proc loadConfig(mem_string: string): PStringTable =
   ## always return a valid object.
   result = newStringTable(modeStyleInsensitive)
   var f = newStringStream(mem_string)
-  if f.isNil: raise newException(EInvalidValue, "cannot stream string")
+  if f.is_nil: raise newException(EInvalidValue, "cannot stream string")
 
   var p: TCfgParser
   open(p, f, "static slurped config")
@@ -76,10 +77,10 @@ proc change_rst_options*(options: string): bool {.discardable, raises: [].} =
   ## false.
   try:
     # Select the correct configuration.
-    let o = if options.isNil: rest_default_config else: options
+    let o = if options.is_nil: rest_default_config else: options
     G.config = loadConfig(o)
     # But report success only if a valid config was passed in.
-    if not options.isNil:
+    if options.not_nil:
       result = true
   except EInvalidValue, E_Base:
     try: error("Setting default rst options")
@@ -100,14 +101,14 @@ proc rst_string_to_html*(content, filename: string): string =
     HAS_TOC: bool
 
   # Was the global configuration already loaded?
-  if isNil(G.config):
+  if G.config.is_nil:
     when not defined(release):
       var f = newFileLogger("/tmp/rester.log", fmtStr = verboseFmtStr)
       handlers.add(newConsoleLogger())
       handlers.add(f)
       info("Initiating global log for debugging")
     G.config = loadConfig(rest_default_config)
-  assert (not isNil(G.config))
+  assert G.config.not_nil
 
   G.base_dir = filename.split_path().head
 
@@ -261,7 +262,7 @@ proc txt_to_rst*(input_filename: cstring): int {.exportc, raises: [].}=
   ## success/failure based on the returned value.
   ##
   ## This proc is mainly for the C api.
-  assert (not input_filename.isNil)
+  assert input_filename.not_nil
   let filename = $input_filename
   case filename.splitFile.ext
   of ".nim":
@@ -278,7 +279,7 @@ proc get_global_html*(output_buffer: pointer) {.exportc, raises: [].} =
   ## will pay that dearly!
   ##
   ## This proc is mainly for the C api.
-  if G.last_c_conversion.isNil:
+  if G.last_c_conversion.is_nil:
     quit("Uh oh, wrong API usage")
   copyMem(output_buffer, addr(G.last_c_conversion[0]), G.last_c_conversion.len)
 
