@@ -25,11 +25,19 @@ type
   Param_in = tuple[src, dest: string]
 
 const manual_input = "nimrod_doc"/"manual.txt"
+var manual_contents: string
 
 proc process(p: Param_in) {.thread.} =
   # Converts the rst to html.
+  # Dummy test
   #os.sleep(100)
-  p.dest.write_file(safe_rst_file_to_html(p.src))
+
+  # This generates files so that they can be checked and compared.
+  #p.dest.write_file(safe_rst_file_to_html(p.src))
+
+  # This is just for in memory rendering testing to avoid IO measurements.
+  var r = rst_string_to_html(manual_contents, p.src)
+
 
 proc serial_test() =
   for i in 1 .. num_files:
@@ -70,8 +78,9 @@ proc render_input() {.thread.} =
     global_pos.inc
     L.release
 
-    input_params[pos].dest.write_file(
-      safe_rst_file_to_html(input_params[pos].src))
+    #input_params[pos].dest.write_file(
+    #  safe_rst_file_to_html(input_params[pos].src))
+    discard rst_string_to_html(manual_contents, input_params[pos].src)
     success_conversions.atomicInc
 
 proc thread_test() =
@@ -111,6 +120,7 @@ proc test() =
 proc check_setup() =
   if not manual_input.exists_file:
     quit("Sorry, couldn't find " & manual_input &", copy it from NIM_PATH/doc.")
+  manual_contents = manual_input.read_file
 
 when isMainModule:
   check_setup()
