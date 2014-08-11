@@ -1,3 +1,17 @@
+## Different parallelization performance tests.
+##
+## The fastest method is implemented with a public API. To test the module you
+## need to create a ``nimrod_doc`` symlink to your Nimrod's ``doc`` directory
+## so that the ``manual.txt`` file can be accessed. Copying just this file
+## won't work due to further rst include directives.
+##
+## At the moment there are two tests, using actors and a manual thread pool
+## with global sequence locking. The latter performs closer to the possible
+## optimal performance scaling.
+##
+## Due to https://github.com/Araq/Nimrod/issues/1469 a ``really_release``
+## symbol is used to detect debug vs release builds.
+
 when defined(release):
   const num_files = 150
   const really_release = true
