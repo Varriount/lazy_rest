@@ -13,8 +13,10 @@ nimcache/
 /gh_docs/
 /lazy_rest
 /lazy_rest.html
+/lazy_rest_pkg/*.html
 /license.html
 /nakefile
+/nakefile.html
 /p
 /tests/code_blocks/anon.html
 /tests/code_blocks/code_blocks.html

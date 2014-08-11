@@ -8,28 +8,23 @@ type
 const
   name = "lazy_rest"
 
-template glob_rst(basedir: string = nil): expr =
+template glob(pattern: string): expr =
   ## Shortcut to simplify getting lists of files.
-  ##
-  ## Pass nil to iterate over rst files in the current directory. This avoids
-  ## prefixing the paths with "./" unnecessarily.
-  if baseDir.isNil:
-    to_seq(walk_files("*.rst"))
-  else:
-    to_seq(walk_files(basedir/"*.rst"))
+  to_seq(walk_files(pattern))
 
 let
-  rst_files = concat(glob_rst(), glob_rst("docs"))
+  rst_files = concat(glob("*.rst"), glob("docs/*rst"))
+  nim_files = concat(@[name & ".nim"], glob("lazy_rest_pkg/*nim"))
 
-iterator all_rst_files(): tuple[src, dest: string] =
-  for rst_name in rst_files:
+iterator all_html_files(files: seq[string]): tuple[src, dest: string] =
+  for filename in files:
     var r: tuple[src, dest: string]
-    r.src = rst_name
+    r.src = filename
     # Ignore files if they don't exist, babel version misses some.
-    if not r.src.existsFile:
+    if not r.src.exists_file:
       echo "Ignoring missing ", r.src
       continue
-    r.dest = rst_name.change_file_ext("html")
+    r.dest = filename.change_file_ext("html")
     yield r
 
 
@@ -58,7 +53,7 @@ proc rst_to_html(src, dest: string): bool =
 
 proc doc(open_files = false) =
   # Generate html files from the rst docs.
-  for rst_file, html_file in all_rst_files():
+  for rst_file, html_file in rst_files.all_html_files:
     if not html_file.needs_refresh(rst_file): continue
     if not rst_to_html(rst_file, html_file):
       quit("Could not generate html doc for " & rst_file)
@@ -66,10 +61,11 @@ proc doc(open_files = false) =
       echo rst_file & " -> " & html_file
       if open_files: shell("open " & html_file)
 
-  if needs_refresh(name & ".html", name & ".nim"):
-    if not shell("nimrod doc --verbosity:0", name):
-      quit("Could not generate HTML API doc for " & name)
-    if open_files: shell("open " & name & ".html")
+  for nim_file, html_file in nim_files.all_html_files:
+    if not html_file.needs_refresh(nim_file): continue
+    if not shell("nimrod doc --verbosity:0", nim_file):
+      quit("Could not generate HTML API doc for " & nim_file)
+    if open_files: shell("open " & html_file)
 
   echo "All docs generated"
 
@@ -78,7 +74,7 @@ proc doco() = doc(true)
 
 
 proc validate_doc() =
-  for rst_file, html_file in all_rst_files():
+  for rst_file, html_file in rst_files.all_html_files():
     echo "Testing ", rst_file
     let (output, exit) = execCmdEx("rst2html.py " & rst_file & " > /dev/null")
     if output.len > 0 or exit != 0:

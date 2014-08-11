@@ -3,6 +3,11 @@ import lazy_rest_pkg/lrstgen, os, lazy_rest_pkg/lrst, strutils,
   external/badger_bits/bb_system
 
 ## Main API of `lazy_rest <https://github.com/gradha/lazy_rest>`_.
+##
+## If you want to use the multi processor aware queues, which are able to
+## render rst files using all the cores of your CPU, import
+## `lazy_rest_pkg/lqueues.nim <lazy_rest_pkg/lqueues.html>`_ and use the
+## objects and procs it provides.
 
 proc tuple_to_version(x: expr): string {.compileTime.} =
   ## Transforms an arbitrary int tuple into a dot separated string.
