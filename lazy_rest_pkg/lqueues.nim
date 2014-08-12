@@ -7,7 +7,7 @@
 ## interface: you pass a list of `Rest_task <#Rest_task>`_ objects and they
 ## will be rendered in parallel using all available cores.
 
-import lazy_rest, external/badger_bits/bb_system, locks
+import lazy_rest, external/badger_bits/bb_system, locks, strutils
 
 type
   Rest_task* = object ## Holds input/output data for each rendering job. \
@@ -64,6 +64,31 @@ type
 
 
 var G: Global_communication
+G.L.init_lock
+
+
+proc `$`*(t: Rest_task): string =
+  ## Convenience debug converter.
+  let
+    idata = if t.input_data.is_nil: "nil" else: $t.input_data.len
+    odata = if t.output_data.is_nil: "nil" else: $t.output_data.len
+    e = if t.errors.is_nil: "nil" else: t.errors.join(", ")
+
+  result = "Rest_task {input_filename: " & t.input_filename.nil_echo &
+    ", output_filename: " & t.output_filename.nil_echo & ", input_data: " &
+    idata & ", output_data: " & odata & ", safe_render: " &
+    $(t.safe_render) & ", errors: " & e & "}"
+
+
+proc rst_file_task*(filename: string, safe_render = true): Rest_task =
+  ## Helper proc to create file oriented tasks for a queue.
+  ##
+  ## The proc will return a valid `Rest_task <#Rest_task>`_ object which
+  ## accepts the `filename` as input file.
+  assert filename.not_nil
+  assert filename.len > 0, "You can't pass an empty input filename"
+  result.input_filename = filename
+  result.safe_render = safe_render
 
 
 #when isMainModule:
