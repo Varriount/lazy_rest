@@ -149,11 +149,16 @@ proc rst_string_to_html*(content, filename: string,
   GENERATOR.renderRstToOut(RST, MOD_DESC)
   #GENERATOR.modDesc = toRope(MOD_DESC)
 
+  var
+    last_mod = epoch_time().from_seconds
+    title = GENERATOR.meta[metaTitle]
+  # Try to get filename modification, might not be possible with string data!
+  if filename.not_nil:
+    try: last_mod = filename.getLastModificationTime
+    except: discard
   let
-    last_mod = filename.getLastModificationTime
     last_mod_local = last_mod.getLocalTime
     last_mod_gmt = last_mod.getGMTime
-  var title = GENERATOR.meta[metaTitle]
   #if title.len < 1: title = filename.split_path.tail
 
   # Now finish by adding header, CSS and stuff.
@@ -207,6 +212,30 @@ proc add_pre_number_lines(content: string): string =
     discard
   else:
     result.add(content[<content.len])
+
+
+proc safe_rst_string_to_html*(filename, data: string,
+    config: PStringTable = nil): string {.raises: [].} =
+  ## Wrapper over rst_string_to_html to catch exceptions.
+  ##
+  ## If something bad happens, it tries to show the error for debugging but
+  ## still returns a sort of valid HTML embedded code.
+  assert data.not_nil
+  try:
+    result = rst_string_to_html(data, filename, config)
+  except:
+    let
+      e = getCurrentException()
+      msg = getCurrentExceptionMsg()
+    result = "<html><body><b>Sorry! Error parsing " & filename.XMLEncode &
+      " with version " & version_str &
+      """.</b><p>If possible please report it at <a href="""" &
+      """https://github.com/gradha/quicklook-rest-with-nimrod/issues">""" &
+      "https://github.com/gradha/quicklook-rest-with-nimrod/issues</a>" &
+      "<p>" & repr(e).XMLEncode & " with message '" &
+      msg.XMLEncode & "'</p><p>Displaying raw contents of file anyway:</p>" &
+      "<p><pre>" & data.add_pre_number_lines.replace("\n", "<br>") &
+      "</pre></p></body></html>"
 
 
 proc safe_rst_file_to_html*(filename: string, config: PStringTable = nil):
