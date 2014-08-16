@@ -265,12 +265,20 @@ proc safe_rst_file_to_html*(filename: string, config: PStringTable = nil):
       "</pre></p></body></html>"
 
 
-proc nim_file_to_html*(filename: string, config: PStringTable = nil):
-    string {.raises: [].} =
-  ## Puts filename into a code block and renders like rst file.
+proc nim_file_to_html*(filename: string, number_lines = true,
+    config: PStringTable = nil): string {.raises: [].} =
+  ## Puts the contents of `filename` in a code block to render as rest.
+  ##
+  ## Returns a string with the rendered HTML. The `number_lines` parameter
+  ## controls if the rendered source will have a column to the left of the
+  ## source with line numbers. By default source lines will be numbered.
   ##
   ## This proc always works, since even empty code blocks should render (as
-  ## empty HTML), and there should be no content escaping problems.
+  ## empty HTML), and there should be no content escaping problems. In the case
+  ## of failure, the error itself will be rendered in the final HTML.
+  const
+    with_numbers = "\n.. code-block:: nimrod\n   :number-lines:\n\n  "
+    without_numbers = "\n.. code-block:: nimrod\n  "
   try:
     let
       name = filename.splitFile.name
@@ -278,7 +286,7 @@ proc nim_file_to_html*(filename: string, config: PStringTable = nil):
       length = 1000 + int(filename.getFileSize)
     var source = newStringOfCap(length)
     source = title_symbols & "\n" & name & "\n" & title_symbols &
-      "\n.. code-block:: nimrod\n  "
+      (if number_lines: with_numbers else: without_numbers)
     source.add(readFile(filename).replace("\n", "\n  "))
     result = rst_string_to_html(source, filename, config)
   except E_Base:
