@@ -1,11 +1,18 @@
 ## Multi processor aware API for `lazy_rest
 ## <https://github.com/gradha/lazy_rest>`_.
 ##
+## **DO NOT USE THIS MODULE AT THE MOMENT**, it is incomplete and crashes bad.
+##
 ## By default the main `lazy_rest <../lazy_rest.html>`_ module works in a
 ## single threaded way. Since no globals are used, rendering of rst files can
 ## be parallelized. This module builds on top of the main API providing a queue
 ## interface: you pass a list of `Rest_task <#Rest_task>`_ objects and they
 ## will be rendered in parallel using all available cores.
+##
+## **NOTE**: This will have to wait until
+## https://github.com/gradha/lazy_rest/issues/5 is resolved in the future.
+##
+## **DO NOT USE THIS MODULE AT THE MOMENT**, it is incomplete and crashes bad.
 
 import lazy_rest, external/badger_bits/bb_system, locks, strutils,
   external/badger_bits/bb_os, osproc
