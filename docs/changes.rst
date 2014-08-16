@@ -13,3 +13,5 @@ v0.1.0, ????-??-??
   <https://github.com/gradha/lazy_rest/issues/1>`_.
 * `Prepared code for parallel generation of documents
   <https://github.com/gradha/lazy_rest/issues/5>`_.
+* `Added .nim rendering tests with line numbering
+  <https://github.com/gradha/lazy_rest/issues/8>`_.
