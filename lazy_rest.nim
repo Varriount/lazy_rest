@@ -119,6 +119,7 @@ proc rst_string_to_html*(content, filename: string,
   ## rendering templates embedded in the module. Or you can load a
   ## configuration file with `parse_rst_options <#parse_rst_options>`_ or
   ## `load_config <#load_config>`_.
+  assert content.not_nil
   assert G.default_config.not_nil
   let
     parse_options = {roSupportRawDirective}
@@ -215,8 +216,43 @@ proc add_pre_number_lines(content: string): string =
     result.add(content[<content.len])
 
 
+proc build_error_html(filename, data: string, errors: ptr seq[string]):
+    string {.raises: [].} =
+  result = "<html><body>Hey</body></html>"
+  #  result = "<html><body><b>Sorry! Error parsing " & filename.XMLEncode &
+  #    " with version " & version_str &
+  #    """.</b><p>If possible please report it at <a href="""" &
+  #    """https://github.com/gradha/quicklook-rest-with-nimrod/issues">""" &
+  #    "https://github.com/gradha/quicklook-rest-with-nimrod/issues</a>" &
+  #    "<p>" & repr(e).XMLEncode & " with message '" &
+  #    msg.XMLEncode & "'</p><p>Displaying raw contents of file anyway:</p>" &
+  #    "<p><pre>" & data.add_pre_number_lines.replace("\n", "<br>") &
+  #    "</pre></p></body></html>"
+
+proc append(errors: ptr seq[string], e: ref E_Base, msg: string)
+    {.raises: [].} =
+  ## Helper to append the current exception to `errors`.
+  ##
+  ## `errors` can be nil, in which case this doesn't do anything. The exception
+  ## will be added to the list as a basic text message.
+  if errors.is_nil or e.is_nil:
+    return
+  if errors[].is_nil: errors[] = @[]
+  # Figure out the name of the exception.
+  var e_name: string
+  if e of EOS: e_name = "EOS"
+  elif e of EIO: e_name = "EIO"
+  elif e of EOutOfMemory: e_name = "EOutOfMemory"
+  else:
+    e_name = "E_Base("
+    e_name.add($(type(e)))
+    e_name.add(":" & repr(e) & ")")
+  errors[].add(e_name & "-> " & msg.safe)
+
+
 proc safe_rst_string_to_html*(filename, data: string,
-    config: PStringTable = nil): string {.raises: [].} =
+    errors: ptr seq[string] = nil, config: PStringTable = nil):
+    string {.raises: [].} =
   ## Wrapper over rst_string_to_html to catch exceptions.
   ##
   ## If something bad happens, it tries to show the error for debugging but
@@ -225,22 +261,12 @@ proc safe_rst_string_to_html*(filename, data: string,
   try:
     result = rst_string_to_html(data, filename, config)
   except:
-    let
-      e = getCurrentException()
-      msg = getCurrentExceptionMsg()
-    result = "<html><body><b>Sorry! Error parsing " & filename.XMLEncode &
-      " with version " & version_str &
-      """.</b><p>If possible please report it at <a href="""" &
-      """https://github.com/gradha/quicklook-rest-with-nimrod/issues">""" &
-      "https://github.com/gradha/quicklook-rest-with-nimrod/issues</a>" &
-      "<p>" & repr(e).XMLEncode & " with message '" &
-      msg.XMLEncode & "'</p><p>Displaying raw contents of file anyway:</p>" &
-      "<p><pre>" & data.add_pre_number_lines.replace("\n", "<br>") &
-      "</pre></p></body></html>"
+    errors.append(get_current_exception(), get_current_exception_msg())
+    result = build_error_html(filename, data, errors)
 
 
-proc safe_rst_file_to_html*(filename: string, config: PStringTable = nil):
-    string {.raises: [].} =
+proc safe_rst_file_to_html*(filename: string, errors: ptr seq[string] = nil,
+    config: PStringTable = nil): string {.raises: [].} =
   ## Wrapper over rst_file_to_html to catch exceptions.
   ##
   ## If something bad happens, it tries to show the error for debugging but
@@ -248,21 +274,11 @@ proc safe_rst_file_to_html*(filename: string, config: PStringTable = nil):
   try:
     result = rst_file_to_html(filename, config)
   except:
+    errors.append(get_current_exception(), get_current_exception_msg())
     var content: string
     try: content = readFile(filename).XMLEncode
-    except E_Base: content = "Could not read " & filename & "!!!"
-    let
-      e = getCurrentException()
-      msg = getCurrentExceptionMsg()
-    result = "<html><body><b>Sorry! Error parsing " & filename.XMLEncode &
-      " with version " & version_str &
-      """.</b><p>If possible please report it at <a href="""" &
-      """https://github.com/gradha/quicklook-rest-with-nimrod/issues">""" &
-      "https://github.com/gradha/quicklook-rest-with-nimrod/issues</a>" &
-      "<p>" & repr(e).XMLEncode & " with message '" &
-      msg.XMLEncode & "'</p><p>Displaying raw contents of file anyway:</p>" &
-      "<p><pre>" & content.add_pre_number_lines.replace("\n", "<br>") &
-      "</pre></p></body></html>"
+    except: content = "Could not read " & filename & " for display!!!"
+    result = build_error_html(filename, content, errors)
 
 
 proc nim_file_to_html*(filename: string, number_lines = true,
