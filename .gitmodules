@@ -1,0 +1,3 @@
+[submodule "external/badger_bits"]
+	path = external/badger_bits
+	url = https://github.com/gradha/badger_bits.git

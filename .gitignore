@@ -1,4 +1,5 @@
 # Global patterns
+*.diff
 *.exe
 *.swp
 .DS_Store
@@ -12,11 +13,16 @@ nimcache/
 /gh_docs/
 /lazy_rest
 /lazy_rest.html
+/lazy_rest_pkg/*.html
 /license.html
 /nakefile
+/nakefile.html
+/p
 /tests/code_blocks/anon.html
 /tests/code_blocks/code_blocks.html
 /tests/code_blocks/html_blocks.html
 /tests/code_blocks/prism_examples.html
 /tests/code_blocks/user_tests.html
 /tests/include/simple_include_01.html
+/tests/threads/?manual*.html
+/tests/threads/nimrod_doc

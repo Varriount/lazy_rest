@@ -12,7 +12,7 @@
 ## also supported.
 
 import
-  os, strutils, lazy_rest_pkg/lrstast
+  os, strutils, lazy_rest_pkg/lrstast, external/badger_bits/bb_system
 
 type
   TRstParseOption* = enum     ## options for the RST parser
@@ -42,9 +42,21 @@ type
     mwUnsupportedLanguage,
     mwUnsupportedField
 
-  TMsgHandler* = proc (filename: string, line, col: int, msgKind: TMsgKind,
-                       arg: string) {.nimcall.} ## what to do in case of an error
-  TFindFileHandler* = proc (filename: string): string {.nimcall.}
+  TMsgHandler* =
+      proc (filename: string, line, col: int,
+        msgKind: TMsgKind, arg: string) {.nimcall.} ## \
+    ## What to do in case of an error.
+
+  Find_file_handler* = proc (current_filename, target_filename: string):
+      string {.nimcall.} ## Callback to resolve file paths. \
+    ##
+    ## The callback should return the path to the final file. If the file can't
+    ## be resolved, it should return the empty string. The `target_filename`
+    ## parameter is the string as found in include directives in rst documents
+    ## which requires resolving. The `current_filename` is the path to the
+    ## current file being processed (it could change through several include
+    ## directives).
+
 
 const
   messages: array [TMsgKind, string] = [
@@ -272,7 +284,7 @@ type
                                 # document.
                                 # This is for over-underline adornments.
     msgHandler: TMsgHandler     # How to handle errors.
-    findFile: TFindFileHandler  # How to find files.
+    findFile: Find_file_handler # How to find files.
 
   PSharedState = ref TSharedState
   TRstParser = object of TObject
@@ -280,7 +292,7 @@ type
     tok*: TTokenSeq
     s*: PSharedState
     indentStack*: seq[int]
-    filename*: string
+    filename_stack*: seq[string] ## The top holds the current open file.
     line*, col*: int
     hasToc*: bool
 
@@ -302,32 +314,38 @@ proc defaultMsgHandler*(filename: string, line, col: int, msgkind: TMsgKind,
   if mc == mcError: raise newException(EParseError, message)
   else: writeln(stdout, message)
 
-proc defaultFindFile*(filename: string): string {.procvar.} =
-  if existsFile(filename): result = filename
+proc defaultFindFile*(current_filename, target_filename: string):
+    string {.procvar.} =
+  assert current_filename.not_nil
+  assert target_filename.not_nil
+  let
+    dir = current_filename.parent_dir
+    target = dir/target_filename
+  if target.exists_file: result = target
   else: result = ""
 
-proc newSharedState(options: TRstParseOptions,
-                    findFile: TFindFileHandler,
-                    msgHandler: TMsgHandler): PSharedState =
+proc newSharedState(options: TRstParseOptions, findFile: Find_file_handler,
+    msgHandler: TMsgHandler): PSharedState =
   new(result)
   result.subs = @[]
   result.refs = @[]
   result.options = options
-  result.msgHandler = if not isNil(msgHandler): msgHandler else: defaultMsgHandler
-  result.findFile = if not isNil(findFile): findFile else: defaultFindFile
+  result.msgHandler = if msgHandler.not_nil: msgHandler else: defaultMsgHandler
+  result.findFile = if findFile.not_nil: findFile else: defaultFindFile
+
+template last*[T](a: openarray[T]): T = a[high(a)]
 
 proc rstMessage(p: TRstParser, msgKind: TMsgKind, arg: string) =
-  p.s.msgHandler(p.filename, p.line + p.tok[p.idx].line,
-                             p.col + p.tok[p.idx].col, msgKind, arg)
+  p.s.msgHandler(p.filename_stack.last, p.line + p.tok[p.idx].line,
+    p.col + p.tok[p.idx].col, msgKind, arg)
 
 proc rstMessage(p: TRstParser, msgKind: TMsgKind, arg: string, line, col: int) =
-  p.s.msgHandler(p.filename, p.line + line,
-                             p.col + col, msgKind, arg)
+  p.s.msgHandler(p.filename_stack.last, p.line + line,
+    p.col + col, msgKind, arg)
 
 proc rstMessage(p: TRstParser, msgKind: TMsgKind) =
-  p.s.msgHandler(p.filename, p.line + p.tok[p.idx].line,
-                             p.col + p.tok[p.idx].col, msgKind,
-                             p.tok[p.idx].symbol)
+  p.s.msgHandler(p.filename_stack.last, p.line + p.tok[p.idx].line,
+    p.col + p.tok[p.idx].col, msgKind, p.tok[p.idx].symbol)
 
 when false:
   proc corrupt(p: TRstParser) =
@@ -347,7 +365,7 @@ proc initParser(p: var TRstParser, sharedState: PSharedState) =
   p.indentStack = @[0]
   p.tok = @[]
   p.idx = 0
-  p.filename = ""
+  p.filename_stack = @[]
   p.hasToc = false
   p.col = 0
   p.line = 1
@@ -1181,7 +1199,7 @@ proc parseSimpleTable(p: var TRstParser): PRstNode =
       initParser(q, p.s)
       q.col = cols[j]
       q.line = line - 1
-      q.filename = p.filename
+      q.filename_stack = p.filename_stack
       q.col += getTokens(row[j], false, q.tok)
       b = newRstNode(rnTableDataCell)
       add(b, parseDoc(q))
@@ -1489,10 +1507,11 @@ proc dirInclude(p: var TRstParser): PRstNode =
   result = nil
   var n = parseDirective(p, {hasArg, argIsFile, hasOptions}, nil)
   var filename = strip(addNodes(n.sons[0]))
-  var path = p.s.findFile(filename)
+  var path = p.s.findFile(p.filename_stack.last, filename)
   if path == "":
     rstMessage(p, meCannotOpenFile, filename)
   else:
+    path = path.expand_filename
     # XXX: error handling; recursive file inclusion!
     if getFieldValue(n, "literal") != "":
       result = newRstNode(rnLiteralBlock)
@@ -1500,7 +1519,8 @@ proc dirInclude(p: var TRstParser): PRstNode =
     else:
       var q: TRstParser
       initParser(q, p.s)
-      q.filename = filename
+      q.filename_stack = p.filename_stack
+      q.filename_stack.add(path)
       q.col += getTokens(readFile(path), false, q.tok)
       # workaround a GCC bug; more like the interior pointer bug?
       #if find(q.tok[high(q.tok)].symbol, "\0\x01\x02") > 0:
@@ -1523,8 +1543,11 @@ proc dirCodeBlock(p: var TRstParser, nimrodExtension = false): PRstNode =
   result = parseDirective(p, {hasArg, hasOptions}, parseLiteralBlock)
   var filename = strip(getFieldValue(result, "file"))
   if filename != "":
-    var path = p.s.findFile(filename)
-    if path == "": rstMessage(p, meCannotOpenFile, filename)
+    var path = p.s.findFile(p.filename_stack.last, filename)
+    if path == "":
+      rstMessage(p, meCannotOpenFile, filename)
+    else:
+      path = path.expand_filename
     var n = newRstNode(rnLiteralBlock)
     add(n, newRstNode(rnLeaf, readFile(path)))
     result.sons[2] = n
@@ -1575,10 +1598,11 @@ proc dirRawAux(p: var TRstParser, result: var PRstNode, kind: TRstNodeKind,
                contentParser: TSectionParser) =
   var filename = getFieldValue(result, "file")
   if filename.len > 0:
-    var path = p.s.findFile(filename)
+    var path = p.s.findFile(p.filename_stack.last, filename)
     if path.len == 0:
       rstMessage(p, meCannotOpenFile, filename)
     else:
+      path = path.expand_filename
       var f = readFile(path)
       result = newRstNode(kind)
       add(result, newRstNode(rnLeaf, f))
@@ -1693,11 +1717,11 @@ proc resolveSubs(p: var TRstParser, n: PRstNode): PRstNode =
 proc rstParse*(text, filename: string,
                line, column: int, hasToc: var bool,
                options: TRstParseOptions,
-               findFile: TFindFileHandler = nil,
+               findFile: Find_file_handler = nil,
                msgHandler: TMsgHandler = nil): PRstNode =
   var p: TRstParser
   initParser(p, newSharedState(options, findFile, msgHandler))
-  p.filename = filename
+  p.filename_stack.add(filename)
   p.line = line
   p.col = column + getTokens(text, roSkipPounds in options, p.tok)
   result = resolveSubs(p, parseDoc(p))

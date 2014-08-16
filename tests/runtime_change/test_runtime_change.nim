@@ -23,17 +23,11 @@ proc normal_test() =
 
 proc test() =
   normal_test()
-  doAssert change_rst_options(special_config)
   let
-    special_text = rst_file_to_html(filename)
+    special_text = rst_file_to_html(filename, special_config.parse_rst_options)
     special_count = special_text.count_instances(expected_title)
   doAssert special_text.find(expected_string) > 0
   doAssert special_count == 4
-
-  echo "Normal API usage passed, expect there to be errors logged now"
-  doAssert change_rst_options(nil) == false
-  normal_test()
-  doAssert change_rst_options("wwww=wwww=wwww") == false
   normal_test()
 
 when isMainModule:
