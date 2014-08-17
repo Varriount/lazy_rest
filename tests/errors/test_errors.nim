@@ -2,7 +2,7 @@ import lazy_rest, strutils, os
 
 type Pair = tuple[src, dest: string]
 
-const tests = ["unknown.rst", "rst_error.rst"]
+const tests = ["unknown.rst", "rst_error.rst", "evil_asterisks.rst"]
 
 proc test() =
   # First test without error control.

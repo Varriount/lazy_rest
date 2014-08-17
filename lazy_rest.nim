@@ -21,6 +21,14 @@ proc load_config*(mem_string: string): PStringTable
 
 const
   rest_default_config = slurp("resources"/"embedded_nimdoc.cfg")
+  error_template = slurp("resources"/"error_html.template") ##
+  ## The default error template which uses the subexes module for string
+  ## replacements.
+  safe_error_start = slurp("resources"/"safe_error_start.template") ##
+  ## Alternative to `error_template` if something goes wrong. This uses simple
+  ## concatenation, so it should be safe.
+  safe_error_end = slurp("resources"/"safe_error_end.template") ##
+  ## Required pair to `safe_error_start`. Content is sandwiched between.
   prism_js = "<script>" & slurp("resources"/"prism.js") & "</script>"
   prism_css = slurp("resources"/"prism.css")
   version_int* = (major: 0, minor: 1, maintenance: 0) ## \
@@ -216,18 +224,18 @@ proc add_pre_number_lines(content: string): string =
     result.add(content[<content.len])
 
 
-proc build_error_html(filename, data: string, errors: ptr seq[string]):
-    string {.raises: [].} =
-  result = "<html><body>Hey</body></html>"
-  #  result = "<html><body><b>Sorry! Error parsing " & filename.XMLEncode &
-  #    " with version " & version_str &
-  #    """.</b><p>If possible please report it at <a href="""" &
-  #    """https://github.com/gradha/quicklook-rest-with-nimrod/issues">""" &
-  #    "https://github.com/gradha/quicklook-rest-with-nimrod/issues</a>" &
-  #    "<p>" & repr(e).XMLEncode & " with message '" &
-  #    msg.XMLEncode & "'</p><p>Displaying raw contents of file anyway:</p>" &
-  #    "<p><pre>" & data.add_pre_number_lines.replace("\n", "<br>") &
-  #    "</pre></p></body></html>"
+proc build_error_table(errors: ptr seq[string]): string {.raises: [].} =
+  ## Returns a string with HTML to display the list of errors as a table.
+  ##
+  ## If there is any problem with the `errors` variable an empty string is
+  ## returned.
+  RESULT = ""
+  if errors.not_nil and errors[].not_nil and errors[].len > 0:
+    RESULT.add("<table CELLPADDING=\"5pt\" border=\"1\">")
+    for line in errors[]:
+      RESULT.add("<tr><td>" & line.xml_encode & "</td></tr>")
+    RESULT.add("</table>\n")
+
 
 proc append(errors: ptr seq[string], e: ref E_Base, msg: string)
     {.raises: [].} =
@@ -235,19 +243,96 @@ proc append(errors: ptr seq[string], e: ref E_Base, msg: string)
   ##
   ## `errors` can be nil, in which case this doesn't do anything. The exception
   ## will be added to the list as a basic text message.
-  if errors.is_nil or e.is_nil:
-    return
-  if errors[].is_nil: errors[] = @[]
+  assert errors.not_nil, "`errors` ptr should never be nil, bad programmer!"
+  assert errors[].not_nil, "`errors[]` should never be nil, bad programmer!"
+  assert e.not_nil, "`e` ref should never be nil, bad programmer!"
+  if errors.is_nil or e.is_nil or errors[].is_nil: return
   # Figure out the name of the exception.
   var e_name: string
   if e of EOS: e_name = "EOS"
   elif e of EIO: e_name = "EIO"
   elif e of EOutOfMemory: e_name = "EOutOfMemory"
+  elif e of EInvalidSubex: e_name = "EInvalidSubex"
+  elif e of EInvalidIndex: e_name = "EInvalidIndex"
+  elif e of EInvalidValue: e_name = "EInvalidValue"
+  elif e of EOutOfRange: e_name = "EOutOfRange"
   else:
-    e_name = "E_Base("
-    e_name.add($(type(e)))
-    e_name.add(":" & repr(e) & ")")
-  errors[].add(e_name & "-> " & msg.safe)
+    e_name = "E_Base(" & repr(e) & ")"
+  errors[].add(e_name & ", " & msg.safe)
+
+
+template append_error_to_list(): stmt =
+  ## Template to be used in exception blocks of procs using errors pattern.
+  ##
+  ## The template will expand to create a default errors variable which shadows
+  ## the parameter. If the parameter has the default nil value, the local
+  ## shadowed version will create local storage to be able to catch and process
+  ## exceptions.
+  ##
+  ## This template should be used at the highest possible caller level, so that
+  ## all its children are able to use the parent's error sequence rather than
+  ## creating their own copy which goes nowhere.
+  var
+    errors {.inject.} = errors
+    local {.inject.}: seq[string]
+  if errors.is_nil:
+    local = @[]
+    errors = local.addr
+  errors.append(get_current_exception(), get_current_exception_msg())
+
+
+proc build_error_html(filename, data: string, errors: ptr seq[string]):
+    string {.raises: [].} =
+  ## Helper which builds an error HTML from the input data and collected errors.
+  ##
+  ## This proc always returns a valid HTML. All the input parameters are
+  ## optional, the proc will figure what to do if they aren't present.
+  result = ""
+  var
+    TIME_STR: array[4, string] # String representations, date, then time.
+    ERROR_TITLE = "Error processing "
+  # Force initialization to empty strings for time representations.
+  for f in 0 .. high(TIME_STR):
+    TIME_STR[f] = ""
+
+  # Fixup title page as much as we can.
+  if filename.is_nil:
+    if data.is_nil:
+      ERROR_TITLE.add("rst input")
+    else:
+      ERROR_TITLE.add($data.len & " bytes of rst input")
+  else:
+    ERROR_TITLE.add(filename.xml_encode)
+
+  # Recover current time and store in text for string replacement.
+  try:
+    for f, value in [get_time().get_gm_time, get_time().get_local_time]:
+      TIME_STR[f * 2] = value.format("yyyy-MM-dd")
+      TIME_STR[f * 2 + 1] = value.format("HH:mm")
+  except EInvalidValue:
+    discard
+
+  # Generate content for the error HTML page.
+  var CONTENT = ""
+  if data.not_nil and data.len > 0:
+    CONTENT = "<p><pre>" &
+      data.xml_encode.add_pre_number_lines.replace("\n", "<br>") &
+      "</pre></p>"
+
+  # Attempt the replacement.
+  try:
+    result = subex(error_template) % ["title", ERROR_TITLE,
+      "local_date", TIME_STR[2], "local_time", TIME_STR[3],
+      "version_str", version_str, "errors", errors.build_error_table,
+      "content", CONTENT]
+  except:
+    append(errors, get_current_exception(), get_current_exception_msg())
+
+  if result.len < 1:
+    # Oops, something went really wrong and we don't have yet the HTML. Build
+    # it from simple string concatenation.
+    result = safe_error_start & errors.build_error_table & "<br>" &
+      CONTENT & safe_error_end
 
 
 proc safe_rst_string_to_html*(filename, data: string,
@@ -261,7 +346,7 @@ proc safe_rst_string_to_html*(filename, data: string,
   try:
     result = rst_string_to_html(data, filename, config)
   except:
-    errors.append(get_current_exception(), get_current_exception_msg())
+    append_error_to_list()
     result = build_error_html(filename, data, errors)
 
 
@@ -274,9 +359,9 @@ proc safe_rst_file_to_html*(filename: string, errors: ptr seq[string] = nil,
   try:
     result = rst_file_to_html(filename, config)
   except:
-    errors.append(get_current_exception(), get_current_exception_msg())
+    append_error_to_list()
     var content: string
-    try: content = readFile(filename).XMLEncode
+    try: content = filename.read_file
     except: content = "Could not read " & filename & " for display!!!"
     result = build_error_html(filename, content, errors)
 
