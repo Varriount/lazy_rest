@@ -15,3 +15,5 @@ v0.1.0, ????-??-??
   <https://github.com/gradha/lazy_rest/issues/5>`_.
 * `Added .nim rendering tests with line numbering
   <https://github.com/gradha/lazy_rest/issues/8>`_.
+* `Changed safe_* procs to return info when something went wrong
+  <https://github.com/gradha/lazy_rest/issues/4>`_.
