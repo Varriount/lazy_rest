@@ -120,13 +120,13 @@ proc rst_string_to_html*(content, filename: string,
   ## Converts a content named filename into a string with HTML tags.
   ##
   ## If there is any problem with the parsing, an exception could be thrown.
-  ## Note that this proc depends on global variables, you can't run safely
-  ## multiple instances of it.
   ##
-  ## You can pass nil as `options` if you want to use the default HTML
-  ## rendering templates embedded in the module. Or you can load a
-  ## configuration file with `parse_rst_options <#parse_rst_options>`_ or
-  ## `load_config <#load_config>`_.
+  ## You can pass nil as `config` if you want to use the default HTML rendering
+  ## templates embedded in the module. Or you can load a configuration file
+  ## with `parse_rst_options <#parse_rst_options>`_ or `load_config
+  ## <#load_config>`_.  The value for the `config` parameter is explained in
+  ## `lazy_rest/lrstgen.initRstGenerator()
+  ## <lazy_rest_pkg/lrstgen.html#initRstGenerator>`_.
   assert content.not_nil
   assert G.default_config.not_nil
   let
@@ -360,15 +360,38 @@ proc build_error_html(filename, data: string, ERRORS: ptr seq[string]):
 proc safe_rst_string_to_html*(filename, data: string,
     ERRORS: ptr seq[string] = nil, config: PStringTable = nil):
     string {.raises: [].} =
-  ## Wrapper over rst_string_to_html to catch exceptions.
+  ## Wrapper over `rst_string_to_html <#rst_string_to_html>`_ to catch
+  ## exceptions.
   ##
-  ## If something bad happens, it tries to show the error for debugging but
-  ## still returns a sort of valid HTML embedded code. This proc always returns
-  ## without problems and generates some sort of HTML, but if you pass an
-  ## initialized sequence of string as the `ERRORS` parameter you can figure
-  ## out why something fails and report it to the user. The value for the
-  ## `config` parameter is explained at `lazy_rest/lrstgen.initRstGenerator()
-  ## <lazy_rest_pkg/lrstgen.html#initRestGenerator>`_.
+  ## Returns always a valid HTML. If something bad happens, it tries to show
+  ## the error for debugging but still returns valid HTML, though it may be
+  ## quite different from what you expect. The `filename` parameter is only
+  ## used for error reporting, you can pass nil or the empty string.
+  ##
+  ## This proc always returns without raising any exceptions, but if you want
+  ## to know about errors you can pass an initialized sequence of string as the
+  ## `ERRORS` parameter to figure out why something fails and report it to the
+  ## user. Any problems found during rendering will be added to the existing
+  ## list.
+  ##
+  ## The value for the `config` parameter is explained in
+  ## `lazy_rest/lrstgen.initRstGenerator()
+  ## <lazy_rest_pkg/lrstgen.html#initRstGenerator>`_.
+  ##
+  ## Usage example:
+  ##
+  ## .. code-block:: nimrod
+  ##
+  ##   echo safe_rst_string_to_html(nil, rst)
+  ##   # --> dumps HTML saying something bad happened.
+  ##   var ERRORS: seq[string] = @[]
+  ##   let html = safe_rst_string_to_html(name, rst, ERRORS.addr)
+  ##   if ERRORS.len > 0:
+  ##     # We got HTML, but it it won't be nice.
+  ##     for error in ERRORS: echo error
+  ##     ...
+  ##   else:
+  ##     # Yay, use `html` without worries.
   const msg = "data parameter can't be nil"
   rassert data.not_nil, msg:
     append_error_to_list()
@@ -385,10 +408,38 @@ proc safe_rst_string_to_html*(filename, data: string,
 
 proc safe_rst_file_to_html*(filename: string, ERRORS: ptr seq[string] = nil,
     config: PStringTable = nil): string {.raises: [].} =
-  ## Wrapper over rst_file_to_html to catch exceptions.
+  ## Wrapper over `rst_file_to_html <#rst_file_to_html>`_ to catch exceptions.
   ##
-  ## If something bad happens, it tries to show the error for debugging but
-  ## still returns a sort of valid HTML embedded code.
+  ## Returns always a valid HTML. If something bad happens, it tries to show
+  ## the error for debugging but still returns valid HTML, though it may be
+  ## quite different from what you expect.
+  ##
+  ## This proc always returns without raising any exceptions, but if you want
+  ## to know about errors you can pass an initialized sequence of string as the
+  ## `ERRORS` parameter to figure out why something fails and report it to the
+  ## user. Any problems found during rendering will be added to the existing
+  ## list.
+  ##
+  ## The value for the `config` parameter is explained in
+  ## `lazy_rest/lrstgen.initRstGenerator()
+  ## <lazy_rest_pkg/lrstgen.html#initRstGenerator>`_.
+  ##
+  ## Usage example:
+  ##
+  ## .. code-block:: nimrod
+  ##
+  ##   import os
+  ##
+  ##   echo safe_rst_file_to_html(nil)
+  ##   # --> dumps HTML saying something bad happened.
+  ##   var ERRORS: seq[string] = @[]
+  ##   let html = safe_rst_file_to_html(filename, ERRORS.addr)
+  ##   if ERRORS.len > 0:
+  ##     # We got HTML, but it it won't be nice.
+  ##     for error in ERRORS: echo error
+  ##     ...
+  ##   else:
+  ##     filename.change_file_ext("html").write_file(html)
   try:
     result = rst_file_to_html(filename, config)
   except:

@@ -45,6 +45,23 @@ proc test() =
   do_assert errors.len < 1
 
 
+proc docstrings() =
+  ## Stuff demostrated in the embedded documentation.
+  const rst = "hello `world"
+  discard safe_rst_string_to_html(nil, rst)
+  var errors: seq[string] = @[]
+  let html = safe_rst_string_to_html(nil, rst, errors.addr)
+  if errors.len > 0: discard
+  else: discard
+
+  const rst_filename = "invisible.rst"
+  discard safe_rst_file_to_html(rst_filename)
+  errors = @[]
+  let html2 = safe_rst_file_to_html(rst_filename, errors.addr)
+  if errors.len > 0: discard
+  else: discard
+
 when isMainModule:
   test()
+  docstrings()
   echo "Test finished successfully"
