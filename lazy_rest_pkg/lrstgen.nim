@@ -123,6 +123,7 @@ proc initRstGenerator*(g: var TRstGenerator, target: TOutputTarget,
   ##
   ##   gen.initRstGenerator(outHtml, defaultConfig(),
   ##     "filename", {}, nil, nil)
+  assert(not filename.is_nil)
 
   g.config = config
   g.target = target

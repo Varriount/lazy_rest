@@ -5,4 +5,4 @@ These asterisks* are bad for rst.
 
 * Not that we really care.
 
-Or was it `single quotes?
+Or was <B it `single quotes?

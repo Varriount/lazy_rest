@@ -9,7 +9,41 @@ proc test() =
   for src in tests:
     let dest = src.change_file_ext("html")
     dest.write_file(src.safe_rst_file_to_html)
-    doAssert dest.exists_file
+    do_assert dest.exists_file
+
+  # Now do some in memory checks.
+  discard safe_rst_file_to_html(nil)
+  discard safe_rst_file_to_html("")
+  discard safe_rst_string_to_html(nil, "Or was it `single quotes?")
+  discard safe_rst_string_to_html("<", "Or was < it `single quotes?")
+  try: discard safe_rst_string_to_html(nil, nil)
+  except EAssertionFailed: discard
+
+  var errors: seq[string]
+  # Repeat counting errors.
+  for src in tests:
+    let dest = src.change_file_ext("html")
+    errors = @[]
+    dest.write_file(src.safe_rst_file_to_html(errors.addr))
+    do_assert dest.exists_file
+    do_assert errors.len > 0
+    echo "Ignore this: ", errors[0]
+
+  # Now do some in memory checks.
+  errors = @[]
+  discard safe_rst_file_to_html(nil, errors.addr)
+  do_assert errors.len > 0
+  echo "Ignore this: ", errors[0]
+  errors = @[]
+  discard safe_rst_file_to_html("", errors.addr)
+  do_assert errors.len > 0
+  echo "Ignore this: ", errors[0]
+  errors = @[]
+  discard safe_rst_string_to_html(nil, "Or was it `single quotes?")
+  do_assert errors.len < 1
+  discard safe_rst_string_to_html("<", "Or was < it `single quotes?")
+  do_assert errors.len < 1
+
 
 when isMainModule:
   test()

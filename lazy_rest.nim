@@ -133,9 +133,12 @@ proc rst_string_to_html*(content, filename: string,
     parse_options = {roSupportRawDirective}
     config = if config.not_nil: config else: G.default_config
   var
+    filename = filename
     GENERATOR: TRstGenerator
     HAS_TOC: bool
   assert config.not_nil
+  if filename.is_nil:
+    filename = "(no filename)"
 
   # Was the debug logger started?
   if not G.did_start_logger:
@@ -183,11 +186,28 @@ proc rst_string_to_html*(content, filename: string,
     "content", MOD_DESC]
 
 
+template rassert*(cond: bool, msg: string, body: stmt) {.immediate.} =
+  ## Mix between assertion in debug mode and normal if at runtime.
+  ##
+  ## This *runtime* assert will stop execution in debug builds. In release
+  ## builds `body` will be run, which can usually contain a return to avoid
+  ## crashing further down the road.
+  when defined(release):
+    if not(cond):
+      body
+  else:
+    assert(cond, msg)
+
+
 proc rst_file_to_html*(filename: string, config: PStringTable = nil): string =
   ## Converts a filename with rest content into a string with HTML tags.
   ##
   ## If there is any problem with the parsing, an exception could be thrown.
-  return rst_string_to_html(readFile(filename), filename, config)
+  const msg = "filename parameter can't be nil!"
+  rassert filename.not_nil, msg:
+    raise new_exception(EInvalidValue, msg)
+
+  result = rst_string_to_html(readFile(filename), filename, config)
 
 
 proc add_pre_number_lines(content: string): string =
@@ -278,7 +298,11 @@ template append_error_to_list(): stmt =
   if errors.is_nil:
     local = @[]
     errors = local.addr
-  errors.append(get_current_exception(), get_current_exception_msg())
+  let
+    e = get_current_exception()
+    msg = get_current_exception_msg()
+  if e.not_nil:
+    errors.append(e, msg)
 
 
 proc build_error_html(filename, data: string, errors: ptr seq[string]):
@@ -347,7 +371,13 @@ proc safe_rst_string_to_html*(filename, data: string,
   ## out why something fails and report it to the user. The value for the
   ## `config` parameter is explained at `lazy_rest/lrstgen.initRstGenerator()
   ## <lazy_rest_pkg/lrstgen.html#initRestGenerator>`_.
-  assert data.not_nil
+  const msg = "data parameter can't be nil"
+  rassert data.not_nil, msg:
+    append_error_to_list()
+    errors.append(new_exception(EInvalidValue, msg), msg)
+    result = build_error_html(filename, data, errors)
+    return
+
   try:
     result = rst_string_to_html(data, filename, config)
   except:
@@ -366,8 +396,11 @@ proc safe_rst_file_to_html*(filename: string, errors: ptr seq[string] = nil,
   except:
     append_error_to_list()
     var content: string
-    try: content = filename.read_file
-    except: content = "Could not read " & filename & " for display!!!"
+    try:
+      if filename.not_nil:
+        content = filename.read_file
+    except:
+      content = "Could not read " & filename & " for display!!!"
     result = build_error_html(filename, content, errors)
 
 
