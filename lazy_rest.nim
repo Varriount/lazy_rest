@@ -341,7 +341,12 @@ proc safe_rst_string_to_html*(filename, data: string,
   ## Wrapper over rst_string_to_html to catch exceptions.
   ##
   ## If something bad happens, it tries to show the error for debugging but
-  ## still returns a sort of valid HTML embedded code.
+  ## still returns a sort of valid HTML embedded code. This proc always returns
+  ## without problems and generates some sort of HTML, but if you pass an
+  ## initialized sequence of string as the `errors` parameter you can figure
+  ## out why something fails and report it to the user. The value for the
+  ## `config` parameter is explained at `lazy_rest/lrstgen.initRstGenerator()
+  ## <lazy_rest_pkg/lrstgen.html#initRestGenerator>`_.
   assert data.not_nil
   try:
     result = rst_string_to_html(data, filename, config)

@@ -77,17 +77,16 @@ proc init(p: var CodeBlockParams) =
   p.langStr = ""
 
 proc initRstGenerator*(g: var TRstGenerator, target: TOutputTarget,
-                       config: PStringTable, filename: string,
-                       options: TRstParseOptions,
-                       findFile: Find_file_handler,
-                       msgHandler: TMsgHandler) =
+    config: PStringTable, filename: string,
+    options: TRstParseOptions, findFile: Find_file_handler,
+    msgHandler: TMsgHandler) =
   ## Initializes a ``TRstGenerator``.
   ##
   ## You need to call this before using a ``TRstGenerator`` with any other
   ## procs in this module. Pass a non ``nil`` ``PStringTable`` value as
   ## `config` with parameters used by the HTML output generator.  If you don't
   ## know what to use, pass the results of the `defaultConfig()
-  ## <#defaultConfig>_` proc.
+  ## <#defaultConfig>`_ proc.
   ##
   ## The `filename` parameter will be used for error reporting and creating
   ## index hyperlinks to the file, but you can pass an empty string here if you
@@ -97,7 +96,7 @@ proc initRstGenerator*(g: var TRstGenerator, target: TOutputTarget,
   ## it helps to prettify the generated index if no title is found.
   ##
   ## The ``TRstParseOptions``, ``TFindFileHandler`` and ``TMsgHandler`` types
-  ## are defined in the the `packages/docutils/rst module <rst.html>`_.
+  ## are defined in the the `lrst module <lrst.html>`_.
   ## ``options`` selects the behaviour of the rst parser.
   ##
   ## ``findFile`` is a proc used by the rst ``include`` directive among others.
@@ -241,8 +240,8 @@ proc renderRstToOut*(d: var TRstGenerator, n: PRstNode, result: var string)
   ## Writes into ``result`` the rst ast ``n`` using the ``d`` configuration.
   ##
   ## Before using this proc you need to initialise a ``TRstGenerator`` with
-  ## ``initRstGenerator`` and parse a rst file with ``rstParse`` from the
-  ## `packages/docutils/rst module <rst.html>`_. Example:
+  ## `initRstGenerator <#initRstGenerator>`_ and parse a rst file with
+  ## ``rstParse`` from the `lrst module <lrst.html>`_. Example:
   ##
   ## .. code-block:: nimrod
   ##
@@ -293,7 +292,8 @@ proc setIndexTerm*(d: var TRstGenerator, id, term: string,
   ## zero, otherwise no specific anchor will be generated. In general you
   ## should only pass an empty `id` value for the title of standalone rst
   ## documents (they are special for the `mergeIndexes() <#mergeIndexes>`_
-  ## proc, see `Index (idx) file format <docgen.html#index-idx-file-format>`_
+  ## proc, see `Index (idx) file format
+  ## <http://build.nimrod-lang.org/docs/docgen.html#index-idx-file-format>`_
   ## for more information). Unlike other index terms, title entries are
   ## inserted at the beginning of the accumulated buffer to maintain a logical
   ## order of entries.
@@ -303,7 +303,8 @@ proc setIndexTerm*(d: var TRstGenerator, id, term: string,
   ##
   ## The index won't be written to disk unless you call `writeIndexFile()
   ## <#writeIndexFile>`_. The purpose of the index is documented in the `docgen
-  ## tools guide <docgen.html#index-switch>`_.
+  ## tools guide
+  ## <http://build.nimrod-lang.org/docs/docgen.html#index-switch>`_.
   assert(not d.theIndex.isNil)
   var
     entry = term
@@ -1139,14 +1140,15 @@ proc defaultConfig*(): PStringTable =
   ##
   ## The returned ``PStringTable`` contains the paramters used by the HTML
   ## engine to build the final output. For information on what these parameters
-  ## are and their purpose, please look up the file ``config/nimdoc.cfg``
-  ## bundled with the compiler.
+  ## are and their purpose, please look up the file `config/nimdoc.cfg
+  ## <https://github.com/Araq/Nimrod/blob/devel/config/nimdoc.cfg>`_ bundled
+  ## with the Nimrod compiler.
   ##
   ## The only difference between the contents of that file and the values
   ## provided by this proc is the ``doc.file`` variable. The ``doc.file``
   ## variable of the configuration file contains HTML to build standalone
   ## pages, while this proc returns just the content for procs like
-  ## ``rstToHtml`` to generate the bare minimum HTML.
+  ## `rstToHtml <#rstToHtml>`_ to generate the bare minimum HTML.
   result = newStringTable(modeStyleInsensitive)
 
   template setConfigVar(key, val: expr) =
@@ -1210,8 +1212,8 @@ proc rstToHtml*(s: string, options: TRstParseOptions,
   ## have to be a full document!) and returns an embeddable piece of HTML. The
   ## proc is meant to be used in *online* environments without access to a
   ## meaningful filesystem, and therefore rst ``include`` like directives won't
-  ## work. For an explanation of the ``config`` parameter see the
-  ## ``initRstGenerator`` proc. Example:
+  ## work. For an explanation of the `config` parameter see the
+  ## `initRstGenerator <#initRstGenerator>`_ proc. Example:
   ##
   ## .. code-block:: nimrod
   ##   import packages/docutils/rstgen, strtabs
@@ -1222,7 +1224,7 @@ proc rstToHtml*(s: string, options: TRstParseOptions,
   ##
   ## If you need to allow the rst ``include`` directive or tweak the generated
   ## output you have to create your own ``TRstGenerator`` with
-  ## ``initRstGenerator`` and related procs.
+  ## `initRstGenerator <#initRstGenerator>`_ and related procs.
 
   const filen = "input"
   var d: TRstGenerator
