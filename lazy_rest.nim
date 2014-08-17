@@ -143,9 +143,9 @@ proc rst_string_to_html*(content, filename: string,
   # Was the debug logger started?
   if not G.did_start_logger:
     when not defined(release):
-      var f = newFileLogger("/tmp/rester.log", fmtStr = verboseFmtStr)
+      var F = newFileLogger("/tmp/rester.log", fmtStr = verboseFmtStr)
       handlers.add(newConsoleLogger())
-      handlers.add(f)
+      handlers.add(F)
       info("Initiating global log for debugging")
     G.did_start_logger = true
 
@@ -244,41 +244,41 @@ proc add_pre_number_lines(content: string): string =
     result.add(content[<content.len])
 
 
-proc build_error_table(errors: ptr seq[string]): string {.raises: [].} =
+proc build_error_table(ERRORS: ptr seq[string]): string {.raises: [].} =
   ## Returns a string with HTML to display the list of errors as a table.
   ##
-  ## If there is any problem with the `errors` variable an empty string is
+  ## If there is any problem with the `ERRORS` variable an empty string is
   ## returned.
   RESULT = ""
-  if errors.not_nil and errors[].not_nil and errors[].len > 0:
+  if ERRORS.not_nil and ERRORS[].not_nil and ERRORS[].len > 0:
     RESULT.add("<table CELLPADDING=\"5pt\" border=\"1\">")
-    for line in errors[]:
+    for line in ERRORS[]:
       RESULT.add("<tr><td>" & line.xml_encode & "</td></tr>")
     RESULT.add("</table>\n")
 
 
-proc append(errors: ptr seq[string], e: ref E_Base, msg: string)
+proc append(ERRORS: ptr seq[string], e: ref E_Base)
     {.raises: [].} =
-  ## Helper to append the current exception to `errors`.
+  ## Helper to append the current exception to `ERRORS`.
   ##
-  ## `errors` can be nil, in which case this doesn't do anything. The exception
+  ## `ERRORS` can be nil, in which case this doesn't do anything. The exception
   ## will be added to the list as a basic text message.
-  assert errors.not_nil, "`errors` ptr should never be nil, bad programmer!"
-  assert errors[].not_nil, "`errors[]` should never be nil, bad programmer!"
+  assert ERRORS.not_nil, "`ERRORS` ptr should never be nil, bad programmer!"
+  assert ERRORS[].not_nil, "`ERRORS[]` should never be nil, bad programmer!"
   assert e.not_nil, "`e` ref should never be nil, bad programmer!"
-  if errors.is_nil or e.is_nil or errors[].is_nil: return
+  if ERRORS.is_nil or e.is_nil or ERRORS[].is_nil: return
   # Figure out the name of the exception.
-  var e_name: string
-  if e of EOS: e_name = "EOS"
-  elif e of EIO: e_name = "EIO"
-  elif e of EOutOfMemory: e_name = "EOutOfMemory"
-  elif e of EInvalidSubex: e_name = "EInvalidSubex"
-  elif e of EInvalidIndex: e_name = "EInvalidIndex"
-  elif e of EInvalidValue: e_name = "EInvalidValue"
-  elif e of EOutOfRange: e_name = "EOutOfRange"
+  var E_NAME: string
+  if e of EOS: E_NAME = "EOS"
+  elif e of EIO: E_NAME = "EIO"
+  elif e of EOutOfMemory: E_NAME = "EOutOfMemory"
+  elif e of EInvalidSubex: E_NAME = "EInvalidSubex"
+  elif e of EInvalidIndex: E_NAME = "EInvalidIndex"
+  elif e of EInvalidValue: E_NAME = "EInvalidValue"
+  elif e of EOutOfRange: E_NAME = "EOutOfRange"
   else:
-    e_name = "E_Base(" & repr(e) & ")"
-  errors[].add(e_name & ", " & msg.safe)
+    E_NAME = "E_Base(" & repr(e) & ")"
+  ERRORS[].add(E_NAME & ", " & e.msg.safe)
 
 
 template append_error_to_list(): stmt =
@@ -293,19 +293,17 @@ template append_error_to_list(): stmt =
   ## all its children are able to use the parent's error sequence rather than
   ## creating their own copy which goes nowhere.
   var
-    errors {.inject.} = errors
+    ERRORS {.inject.} = ERRORS
     local {.inject.}: seq[string]
-  if errors.is_nil:
+  if ERRORS.is_nil:
     local = @[]
-    errors = local.addr
-  let
-    e = get_current_exception()
-    msg = get_current_exception_msg()
+    ERRORS = local.addr
+  let e = get_current_exception()
   if e.not_nil:
-    errors.append(e, msg)
+    ERRORS.append(e)
 
 
-proc build_error_html(filename, data: string, errors: ptr seq[string]):
+proc build_error_html(filename, data: string, ERRORS: ptr seq[string]):
     string {.raises: [].} =
   ## Helper which builds an error HTML from the input data and collected errors.
   ##
@@ -347,45 +345,45 @@ proc build_error_html(filename, data: string, errors: ptr seq[string]):
   try:
     result = subex(error_template) % ["title", ERROR_TITLE,
       "local_date", TIME_STR[2], "local_time", TIME_STR[3],
-      "version_str", version_str, "errors", errors.build_error_table,
+      "version_str", version_str, "errors", ERRORS.build_error_table,
       "content", CONTENT]
   except:
-    append(errors, get_current_exception(), get_current_exception_msg())
+    ERRORS.append(get_current_exception())
 
   if result.len < 1:
     # Oops, something went really wrong and we don't have yet the HTML. Build
     # it from simple string concatenation.
-    result = safe_error_start & errors.build_error_table & "<br>" &
+    result = safe_error_start & ERRORS.build_error_table & "<br>" &
       CONTENT & safe_error_end
 
 
 proc safe_rst_string_to_html*(filename, data: string,
-    errors: ptr seq[string] = nil, config: PStringTable = nil):
+    ERRORS: ptr seq[string] = nil, config: PStringTable = nil):
     string {.raises: [].} =
   ## Wrapper over rst_string_to_html to catch exceptions.
   ##
   ## If something bad happens, it tries to show the error for debugging but
   ## still returns a sort of valid HTML embedded code. This proc always returns
   ## without problems and generates some sort of HTML, but if you pass an
-  ## initialized sequence of string as the `errors` parameter you can figure
+  ## initialized sequence of string as the `ERRORS` parameter you can figure
   ## out why something fails and report it to the user. The value for the
   ## `config` parameter is explained at `lazy_rest/lrstgen.initRstGenerator()
   ## <lazy_rest_pkg/lrstgen.html#initRestGenerator>`_.
   const msg = "data parameter can't be nil"
   rassert data.not_nil, msg:
     append_error_to_list()
-    errors.append(new_exception(EInvalidValue, msg), msg)
-    result = build_error_html(filename, data, errors)
+    ERRORS.append(new_exception(EInvalidValue, msg))
+    result = build_error_html(filename, data, ERRORS)
     return
 
   try:
     result = rst_string_to_html(data, filename, config)
   except:
     append_error_to_list()
-    result = build_error_html(filename, data, errors)
+    result = build_error_html(filename, data, ERRORS)
 
 
-proc safe_rst_file_to_html*(filename: string, errors: ptr seq[string] = nil,
+proc safe_rst_file_to_html*(filename: string, ERRORS: ptr seq[string] = nil,
     config: PStringTable = nil): string {.raises: [].} =
   ## Wrapper over rst_file_to_html to catch exceptions.
   ##
@@ -395,13 +393,13 @@ proc safe_rst_file_to_html*(filename: string, errors: ptr seq[string] = nil,
     result = rst_file_to_html(filename, config)
   except:
     append_error_to_list()
-    var content: string
+    var CONTENT: string
     try:
       if filename.not_nil:
-        content = filename.read_file
+        CONTENT = filename.read_file
     except:
-      content = "Could not read " & filename & " for display!!!"
-    result = build_error_html(filename, content, errors)
+      CONTENT = "Could not read " & filename & " for display!!!"
+    result = build_error_html(filename, CONTENT, ERRORS)
 
 
 proc nim_file_to_html*(filename: string, number_lines = true,
@@ -423,11 +421,11 @@ proc nim_file_to_html*(filename: string, number_lines = true,
       name = filename.splitFile.name
       title_symbols = repeatChar(name.len, '=')
       length = 1000 + int(filename.getFileSize)
-    var source = newStringOfCap(length)
-    source = title_symbols & "\n" & name & "\n" & title_symbols &
+    var SOURCE = newStringOfCap(length)
+    SOURCE = title_symbols & "\n" & name & "\n" & title_symbols &
       (if number_lines: with_numbers else: without_numbers)
-    source.add(readFile(filename).replace("\n", "\n  "))
-    result = rst_string_to_html(source, filename, config)
+    SOURCE.add(readFile(filename).replace("\n", "\n  "))
+    result = rst_string_to_html(SOURCE, filename, config)
   except E_Base:
     result = "<html><body><h1>Error for " & filename & "</h1></body></html>"
   except EOS:
