@@ -826,7 +826,7 @@ proc buildLinesHTMLTable(params: CodeBlockParams, code: string):
     result = ("<pre>", "</pre>")
     return
 
-  var codeLines = code.strip(leading = false).countLines
+  var codeLines = 1 + code.strip.countLines
   assert codeLines > 0
   result.beginTable = """<table><tbody><tr><td
 valign="top" class="blob-line-nums"><pre>"""
