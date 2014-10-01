@@ -2,6 +2,8 @@
 Lazy reST Nimrod usage guide
 ============================
 
+.. |rst| replace:: reStructuredText
+
 This is the Nimrod usage guide for `Lazy reSt
 <https://github.com/gradha/lazy_rest>`_.  See the `README <../README.rst>`_.
 
@@ -40,7 +42,7 @@ Documentation
 
 Documentation comes as embedded docstrings. If you have `nake
 <https://github.com/fowlmouth/nake>`_ installed, you can run the following
-command to build all the reST files into HTML and the ``lazy_rest.nim`` module
+command to build all the |rst| files into HTML and the ``lazy_rest.nim`` module
 into HTML::
 
     $ nake doc
@@ -67,7 +69,7 @@ Here is a minimal Nimrod usage example:
 Extensions
 ==========
 
-If you are rendering a reST file which contains a code block, and the code
+If you are rendering a |rst| file which contains a code block, and the code
 block specifies a syntax highlight language not supported by `Nimrod's highlite
 module <http://nimrod-lang.org/highlite.html>`_, then `Prism
 <http://prismjs.com>`_ will be embedded in an attempt to prettify the code
