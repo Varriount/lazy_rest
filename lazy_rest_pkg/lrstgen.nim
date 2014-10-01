@@ -828,13 +828,14 @@ proc buildLinesHTMLTable(params: CodeBlockParams, code: string):
 
   var codeLines = code.strip(leading = false).countLines
   assert codeLines > 0
-  result.beginTable = """<table><tbody><tr><td class="blob-line-nums"><pre>"""
+  result.beginTable = """<table><tbody><tr><td
+valign="top" class="blob-line-nums"><pre>"""
   var line = params.startLine
   while codeLines > 0:
     result.beginTable.add($line & "\n")
     line.inc
     codeLines.dec
-  result.beginTable.add("</pre></td><td><pre>")
+  result.beginTable.add("""</pre></td><td valign="top"><pre>""")
   result.endTable = "</pre></td></tr></tbody></table>"
 
 proc renderCodeBlock(d: PDoc, n: PRstNode, result: var string) =

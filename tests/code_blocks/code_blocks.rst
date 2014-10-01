@@ -9,7 +9,6 @@ This should be a `code block`:code: in Nimrod:
 
 .. code-block::
     :number-lines: -33
-
     echo "Hey nimrod!"
     if a < b:
         # Blah blah
